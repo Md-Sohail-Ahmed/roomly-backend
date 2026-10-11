@@ -30,7 +30,7 @@ func (r *UserRepository) Create(
 	passwordHash string,
 ) (models.User, error) {
 	query := `
-		INSERT INTO users (name, email, password, role)
+		INSERT INTO users (name, email, password_hash, role)
 		VALUES (?, ?, ?, 'employee')
 	`
 
@@ -58,7 +58,7 @@ func (r *UserRepository) Create(
 	var user models.User
 
 	selectQuery := `
-		SELECT id, name, email, password, role,
+		SELECT id, name, email, password_hash, role,
 		       is_active, created_at, updated_at
 		FROM users
 		WHERE id = ?
@@ -86,7 +86,7 @@ func (r *UserRepository) FindByEmail(
 	email string,
 ) (models.User, error) {
 	query := `
-		SELECT id, name, email, password, role,
+		SELECT id, name, email, password_hash, role,
 		       is_active, created_at, updated_at
 		FROM users
 		WHERE email = ?
@@ -155,7 +155,7 @@ func (r *UserRepository) List(ctx context.Context, limit, offset int) ([]models.
 
 func (r *UserRepository) FindByID(ctx context.Context, id int64) (models.User, error) {
 	var user models.User
-	err := r.db.QueryRowContext(ctx, `SELECT id, name, email, password, role, is_active, created_at, updated_at FROM users WHERE id = ?`, id).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.Role, &user.IsActive, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.QueryRowContext(ctx, `SELECT id, name, email, password_hash, role, is_active, created_at, updated_at FROM users WHERE id = ?`, id).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.Role, &user.IsActive, &user.CreatedAt, &user.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return models.User{}, ErrUserNotFound
 	}

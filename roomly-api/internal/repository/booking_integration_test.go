@@ -51,7 +51,7 @@ func createBookingFixture(t *testing.T, db *sql.DB) (int64, int64, func()) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	userResult, err := db.ExecContext(ctx, `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'employee')`, "Integration Test", fmt.Sprintf("booking-%x@example.invalid", random), "not-a-real-password-hash")
+	userResult, err := db.ExecContext(ctx, `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'employee')`, "Integration Test", fmt.Sprintf("booking-%x@example.invalid", random), "not-a-real-password-hash")
 	if err != nil {
 		t.Fatalf("create isolated test user: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestFirstAdminBootstrapAndLastAdminGuard(t *testing.T) {
 		t.Fatal(err)
 	}
 	email := fmt.Sprintf("seed-%x@example.invalid", random)
-	result, err := db.ExecContext(ctx, `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'employee')`, "Bootstrap Test", email, "not-a-real-password-hash")
+	result, err := db.ExecContext(ctx, `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'employee')`, "Bootstrap Test", email, "not-a-real-password-hash")
 	if err != nil {
 		t.Fatal("create isolated bootstrap user")
 	}

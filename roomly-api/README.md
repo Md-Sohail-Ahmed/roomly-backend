@@ -10,7 +10,7 @@ Roomly is a Go `net/http` API backed by MySQL. It provides employee registration
 
 ## Local setup
 
-1. Create `roomly_db` and the `users`, `rooms`, `amenities`, `room_amenities`, and `bookings` tables in MySQL Workbench using your supplied schema or the additive fresh-database reference in [docs/mysql-schema.sql](docs/mysql-schema.sql). Keep the user password column named `password`; the repository maps it to an internal field that is never serialized.
+1. Create `roomly_db` and the `users`, `rooms`, `amenities`, `room_amenities`, and `bookings` tables in MySQL Workbench using your supplied schema or the additive fresh-database reference in [docs/mysql-schema.sql](docs/mysql-schema.sql). The user password-hash column must be named `password_hash`; it stores bcrypt hashes and is never serialized.
 2. Ensure the tables use InnoDB. The booking concurrency guarantee relies on transactional row locks. Keep the supplied foreign keys and unique constraints.
 3. Copy `.env.example` to `.env`, set the database connection values, and replace `JWT_SECRET` with a randomly generated value of at least 32 bytes. `DB_TIMEZONE` must remain `UTC`; connections set both the Go parsing location and MySQL session timezone to UTC.
 4. Start the API from this directory:
