@@ -19,8 +19,11 @@ type TokenClaims struct {
 const TokenIssuer = "roomly-api"
 
 func GenerateToken(user models.User, secret string) (string, error) {
-	if len(secret) < 32 || user.ID <= 0 || user.Role == "" {
+	if len(secret) < 32 {
 		return "", errors.New("JWT secret must be at least 32 bytes")
+	}
+	if user.ID <= 0 || (user.Role != "employee" && user.Role != "admin") {
+		return "", errors.New("user identity is invalid")
 	}
 
 	now := time.Now().UTC()
@@ -64,7 +67,7 @@ func ParseToken(raw, secret string) (int64, string, error) {
 		return 0, "", errors.New("invalid token")
 	}
 	id, err := strconv.ParseInt(claims.Subject, 10, 64)
-	if err != nil || id <= 0 || claims.Role == "" {
+	if err != nil || id <= 0 || (claims.Role != "employee" && claims.Role != "admin") {
 		return 0, "", errors.New("invalid token claims")
 	}
 	return id, claims.Role, nil

@@ -28,7 +28,7 @@ func (r *UserRepository) Create(
 	passwordHash string,
 ) (models.User, error) {
 	query := `
-		INSERT INTO users (name, email, password_hash, role)
+		INSERT INTO users (name, email, password, role)
 		VALUES (?, ?, ?, 'employee')
 	`
 
@@ -56,7 +56,7 @@ func (r *UserRepository) Create(
 	var user models.User
 
 	selectQuery := `
-		SELECT id, name, email, password_hash, role,
+		SELECT id, name, email, password, role,
 		       is_active, created_at, updated_at
 		FROM users
 		WHERE id = ?
@@ -84,7 +84,7 @@ func (r *UserRepository) FindByEmail(
 	email string,
 ) (models.User, error) {
 	query := `
-		SELECT id, name, email, password_hash, role,
+		SELECT id, name, email, password, role,
 		       is_active, created_at, updated_at
 		FROM users
 		WHERE email = ?
@@ -112,4 +112,16 @@ func (r *UserRepository) FindByEmail(
 	}
 
 	return user, nil
+}
+
+func (r *UserRepository) IsActive(ctx context.Context, id int64) (bool, error) {
+	var active bool
+	err := r.db.QueryRowContext(ctx, `SELECT is_active FROM users WHERE id = ?`, id).Scan(&active)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, sql.ErrNoRows
+	}
+	if err != nil {
+		return false, fmt.Errorf("check user status: %w", err)
+	}
+	return active, nil
 }
