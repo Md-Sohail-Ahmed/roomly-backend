@@ -25,6 +25,7 @@ Login uses the same email/password fields. Wrong credentials and inactive users 
 | `PUT /rooms/{id}` | Admin | `200` |
 | `PATCH /rooms/{id}/status` | Admin | `200` |
 | `GET /rooms/{id}/availability?start_time=...&end_time=...` | Employee or admin | `200`, `{room_id,start_time,end_time,available}` |
+| `GET /rooms/{id}/schedule?start_time=...&end_time=...` | Employee or admin | `200`, list of bookings overlapping the requested interval |
 
 Room create/update body: `{ "name":"Cedar", "capacity":8, "location":"Floor 2" }`. Status body: `{ "is_active":false }`. Names and locations are required and bounded by the schema; capacity must be positive. List `limit` is 1–100. Location uses a parameterized contains match.
 

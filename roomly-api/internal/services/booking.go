@@ -19,6 +19,7 @@ var (
 
 type bookingStore interface {
 	CheckAvailability(context.Context, int64, time.Time, time.Time) (bool, error)
+	ListRoomSchedule(context.Context, int64, time.Time, time.Time) ([]models.RoomScheduleItem, error)
 	Create(context.Context, models.Booking) (models.Booking, error)
 	Get(context.Context, int64) (models.Booking, error)
 	List(context.Context, *int64, string, int, int) ([]models.Booking, int, error)
@@ -47,6 +48,13 @@ func (s *BookingService) Availability(ctx context.Context, roomID int64, start, 
 		return false, err
 	}
 	return s.bookings.CheckAvailability(ctx, roomID, start.UTC(), end.UTC())
+}
+
+func (s *BookingService) RoomSchedule(ctx context.Context, roomID int64, start, end time.Time) ([]models.RoomScheduleItem, error) {
+	if roomID <= 0 || start.IsZero() || end.IsZero() || !end.After(start) {
+		return nil, ErrInvalidBooking
+	}
+	return s.bookings.ListRoomSchedule(ctx, roomID, start.UTC(), end.UTC())
 }
 
 func (s *BookingService) Create(ctx context.Context, booking models.Booking) (models.Booking, error) {

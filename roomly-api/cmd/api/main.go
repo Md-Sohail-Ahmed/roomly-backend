@@ -58,27 +58,50 @@ func run() error {
 	withAuth := func(next http.Handler) http.Handler { return middleware.Auth(cfg.JWTSecret, userRepo, next) }
 	adminOnly := func(next http.Handler) http.Handler { return withAuth(middleware.RequireRole("admin", next)) }
 	mux.Handle("GET /api/v1/rooms", withAuth(http.HandlerFunc(roomHandler.List)))
+
 	mux.Handle("GET /api/v1/rooms/{id}", withAuth(http.HandlerFunc(roomHandler.Get)))
+
 	mux.Handle("POST /api/v1/rooms", adminOnly(http.HandlerFunc(roomHandler.Create)))
+
 	mux.Handle("PUT /api/v1/rooms/{id}", adminOnly(http.HandlerFunc(roomHandler.Update)))
+
 	mux.Handle("PATCH /api/v1/rooms/{id}/status", adminOnly(http.HandlerFunc(roomHandler.SetActive)))
+
 	mux.Handle("GET /api/v1/amenities", withAuth(http.HandlerFunc(amenityHandler.List)))
+
 	mux.Handle("GET /api/v1/amenities/{id}", withAuth(http.HandlerFunc(amenityHandler.Get)))
+
 	mux.Handle("POST /api/v1/amenities", adminOnly(http.HandlerFunc(amenityHandler.Create)))
+
 	mux.Handle("PUT /api/v1/amenities/{id}", adminOnly(http.HandlerFunc(amenityHandler.Update)))
+
 	mux.Handle("DELETE /api/v1/amenities/{id}", adminOnly(http.HandlerFunc(amenityHandler.Delete)))
+
 	mux.Handle("GET /api/v1/rooms/{id}/amenities", withAuth(http.HandlerFunc(amenityHandler.ListForRoom)))
+
 	mux.Handle("POST /api/v1/rooms/{id}/amenities/{amenityID}", adminOnly(http.HandlerFunc(amenityHandler.AddToRoom)))
+
 	mux.Handle("DELETE /api/v1/rooms/{id}/amenities/{amenityID}", adminOnly(http.HandlerFunc(amenityHandler.RemoveFromRoom)))
+
 	mux.Handle("GET /api/v1/rooms/{id}/availability", withAuth(http.HandlerFunc(bookingHandler.Availability)))
+	mux.Handle("GET /api/v1/rooms/{id}/schedule", withAuth(http.HandlerFunc(bookingHandler.RoomSchedule)))
+
 	mux.Handle("POST /api/v1/bookings", withAuth(middleware.RequireRole("employee", http.HandlerFunc(bookingHandler.Create))))
+
 	mux.Handle("GET /api/v1/bookings", adminOnly(http.HandlerFunc(bookingHandler.ListAll)))
+
 	mux.Handle("GET /api/v1/bookings/mine", withAuth(middleware.RequireRole("employee", http.HandlerFunc(bookingHandler.ListMine))))
+
 	mux.Handle("GET /api/v1/bookings/{id}", withAuth(http.HandlerFunc(bookingHandler.Get)))
+
 	mux.Handle("POST /api/v1/bookings/{id}/cancel", withAuth(http.HandlerFunc(bookingHandler.Cancel)))
+
 	mux.Handle("GET /api/v1/users", adminOnly(http.HandlerFunc(adminUserHandler.List)))
+
 	mux.Handle("GET /api/v1/users/{id}", adminOnly(http.HandlerFunc(adminUserHandler.Get)))
+
 	mux.Handle("PATCH /api/v1/users/{id}/status", adminOnly(http.HandlerFunc(adminUserHandler.SetActive)))
+
 	mux.Handle("PATCH /api/v1/users/{id}/role", adminOnly(http.HandlerFunc(adminUserHandler.SetRole)))
 
 	server := &http.Server{

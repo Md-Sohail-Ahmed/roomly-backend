@@ -41,6 +41,29 @@ func (h *BookingHandler) Availability(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"room_id": roomID, "start_time": start, "end_time": end, "available": available})
 }
 
+func (h *BookingHandler) RoomSchedule(w http.ResponseWriter, r *http.Request) {
+	id, ok := roomID(w, r)
+	if !ok {
+		return
+	}
+	start, err := services.ParseTimestamp(r.URL.Query().Get("start_time"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "start_time must be RFC3339 with a timezone")
+		return
+	}
+	end, err := services.ParseTimestamp(r.URL.Query().Get("end_time"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "end_time must be RFC3339 with a timezone")
+		return
+	}
+	items, err := h.bookings.RoomSchedule(r.Context(), id, start, end)
+	if err != nil {
+		h.writeBookingError(w, err, "could not get room schedule")
+		return
+	}
+	writeJSON(w, http.StatusOK, items)
+}
+
 type bookingRequest struct {
 	RoomID        int64  `json:"room_id"`
 	Title         string `json:"title"`

@@ -55,3 +55,7 @@ go vet ./...
 ```
 
 The current automated suite contains unit tests for service validation, JWT handling, role middleware, ownership, and pagination. Database integration tests require a separately provisioned MySQL database whose name ends in `_test` or `_testing`, with the Roomly schema installed. Set `ROOMLY_TEST_DSN` only for that isolated database to run the concurrent/back-to-back booking, cancellation, capacity, inactive-room, amenity-association, and initial-admin integration tests; the tests refuse other database names and are not run against your development database. For integration tests, create a separate `roomly_test` database and apply the reference schema after changing its `CREATE DATABASE` and `USE` names. Do not point `ROOMLY_TEST_DSN` at `roomly_db`.
+
+## Frontend
+
+The integrated React frontend is maintained in the sibling `Roomly_web_frontend` folder (repository: [Roomly_web_frontend](https://github.com/Mayur25004/Roomly_web_frontend)). From `Roomly_web_frontend/roomly-web`, run `npm ci`, copy `.env.example` to `.env`, then run `npm run dev`. Vite proxies `/api` requests to this backend at `http://localhost:8080`; start the API first. The browser authenticates with bearer JWTs. The room schedule endpoint returns occupied time ranges without exposing meeting titles or attendee details.

@@ -20,6 +20,9 @@ type bookingStoreStub struct {
 func (s *bookingStoreStub) CheckAvailability(context.Context, int64, time.Time, time.Time) (bool, error) {
 	return s.available, nil
 }
+func (s *bookingStoreStub) ListRoomSchedule(context.Context, int64, time.Time, time.Time) ([]models.RoomScheduleItem, error) {
+	return nil, nil
+}
 func (s *bookingStoreStub) Create(_ context.Context, b models.Booking) (models.Booking, error) {
 	s.created = b
 	return b, nil

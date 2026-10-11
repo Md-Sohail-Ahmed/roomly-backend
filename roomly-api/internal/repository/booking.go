@@ -37,6 +37,35 @@ func (r *BookingRepository) CheckAvailability(ctx context.Context, roomID int64,
 	return !conflict, nil
 }
 
+func (r *BookingRepository) ListRoomSchedule(ctx context.Context, roomID int64, start, end time.Time) ([]models.RoomScheduleItem, error) {
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM rooms WHERE id = ?)`, roomID).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check schedule room: %w", err)
+	}
+	if !exists {
+		return nil, ErrRoomNotFound
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT id, start_time, end_time FROM bookings WHERE room_id = ? AND status = 'active' AND start_time < ? AND end_time > ? ORDER BY start_time`, roomID, end.UTC(), start.UTC())
+	if err != nil {
+		return nil, fmt.Errorf("list room schedule: %w", err)
+	}
+	defer rows.Close()
+	items := make([]models.RoomScheduleItem, 0)
+	for rows.Next() {
+		var item models.RoomScheduleItem
+		if err := rows.Scan(&item.ID, &item.StartTime, &item.EndTime); err != nil {
+			return nil, fmt.Errorf("scan room schedule: %w", err)
+		}
+		item.Title = "Booked"
+		item.Status = "active"
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate room schedule: %w", err)
+	}
+	return items, nil
+}
+
 // Create locks the parent room row before checking for overlap. Concurrent
 // creators for one room therefore serialize even when no booking row exists
 // yet; every create path must use this transaction and lock order.
