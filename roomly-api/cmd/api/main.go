@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -82,7 +83,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              ":" + strconv.Itoa(cfg.AppPort),
-		Handler:           requestIDMiddleware(mux),
+		Handler:           requestIDMiddleware(middleware.RequestTimeout(8*time.Second, mux)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -144,7 +145,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.Header.Get("X-Request-ID")
-		if requestID == "" {
+		if requestID == "" || len(requestID) > 128 || strings.ContainsAny(requestID, "\r\n") {
 			requestID = newRequestID()
 		}
 

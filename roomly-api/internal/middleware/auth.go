@@ -2,8 +2,12 @@ package middleware
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"roomly-api/internal/services"
 )
@@ -16,7 +20,7 @@ type Identity struct {
 }
 
 type UserStatus interface {
-	IsActive(context.Context, int64) (bool, error)
+	AuthorizationState(context.Context, int64) (bool, string, error)
 }
 
 func Auth(secret string, users UserStatus, next http.Handler) http.Handler {
@@ -32,9 +36,16 @@ func Auth(secret string, users UserStatus, next http.Handler) http.Handler {
 			unauthorized(w)
 			return
 		}
-		active, err := users.IsActive(r.Context(), id)
-		if err != nil || !active {
+		active, currentRole, err := users.AuthorizationState(r.Context(), id)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (!active || currentRole != role)) {
 			unauthorized(w)
+			return
+		}
+		if err != nil {
+			log.Print("authentication state lookup failed")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error":"internal server error"}`))
 			return
 		}
 		ctx := context.WithValue(r.Context(), identityKey{}, Identity{UserID: id, Role: role})
@@ -56,6 +67,14 @@ func RequireRole(role string, next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+func RequestTimeout(timeout time.Duration, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		defer cancel()
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

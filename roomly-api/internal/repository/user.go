@@ -116,16 +116,17 @@ func (r *UserRepository) FindByEmail(
 	return user, nil
 }
 
-func (r *UserRepository) IsActive(ctx context.Context, id int64) (bool, error) {
+func (r *UserRepository) AuthorizationState(ctx context.Context, id int64) (bool, string, error) {
 	var active bool
-	err := r.db.QueryRowContext(ctx, `SELECT is_active FROM users WHERE id = ?`, id).Scan(&active)
+	var role string
+	err := r.db.QueryRowContext(ctx, `SELECT is_active, role FROM users WHERE id = ?`, id).Scan(&active, &role)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, sql.ErrNoRows
+		return false, "", sql.ErrNoRows
 	}
 	if err != nil {
-		return false, fmt.Errorf("check user status: %w", err)
+		return false, "", fmt.Errorf("check user authorization state: %w", err)
 	}
-	return active, nil
+	return active, role, nil
 }
 
 func (r *UserRepository) List(ctx context.Context, limit, offset int) ([]models.User, int, error) {
@@ -230,6 +231,62 @@ func (r *UserRepository) SetRole(ctx context.Context, id int64, role string) (mo
 }
 
 var ErrInvalidRole = errors.New("role must be employee or admin")
+var ErrAdminBootstrapComplete = errors.New("an admin account already exists")
+var ErrBootstrapUserNotFound = errors.New("bootstrap user not found")
+var ErrBootstrapUserInactive = errors.New("bootstrap user must be active")
+
+// PromoteFirstAdmin promotes an already registered employee only when no
+// admin exists. A MySQL named lock serializes concurrent bootstrap commands.
+func (r *UserRepository) PromoteFirstAdmin(ctx context.Context, email string) error {
+	conn, err := r.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("open bootstrap connection: %w", err)
+	}
+	defer conn.Close()
+	var acquired sql.NullInt64
+	if err := conn.QueryRowContext(ctx, `SELECT GET_LOCK('roomly_admin_bootstrap', 10)`).Scan(&acquired); err != nil {
+		return fmt.Errorf("acquire admin bootstrap lock: %w", err)
+	}
+	if !acquired.Valid || acquired.Int64 != 1 {
+		return errors.New("could not acquire admin bootstrap lock")
+	}
+	defer func() { _, _ = conn.ExecContext(context.Background(), `SELECT RELEASE_LOCK('roomly_admin_bootstrap')`) }()
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return fmt.Errorf("begin admin bootstrap transaction: %w", err)
+	}
+	defer tx.Rollback()
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE role = 'admin'`).Scan(&count); err != nil {
+		return fmt.Errorf("check existing admins: %w", err)
+	}
+	if count != 0 {
+		return ErrAdminBootstrapComplete
+	}
+	var id int64
+	var role string
+	var active bool
+	err = tx.QueryRowContext(ctx, `SELECT id, role, is_active FROM users WHERE email = ? FOR UPDATE`, email).Scan(&id, &role, &active)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrBootstrapUserNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock bootstrap user: %w", err)
+	}
+	if !active {
+		return ErrBootstrapUserInactive
+	}
+	if role != "employee" {
+		return ErrAdminBootstrapComplete
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE users SET role = 'admin' WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("promote bootstrap user: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit admin bootstrap: %w", err)
+	}
+	return nil
+}
 
 func lockActiveAdmins(ctx context.Context, tx *sql.Tx) (int, error) {
 	// Lock active admin rows in a stable order before locking the target user.

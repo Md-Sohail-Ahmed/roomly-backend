@@ -12,7 +12,7 @@ import (
 
 var (
 	ErrInvalidBooking   = errors.New("booking fields are invalid")
-	ErrBookingInPast    = errors.New("booking start time must be in the future")
+	ErrBookingInPast    = repository.ErrBookingStartPassed
 	ErrBookingDuration  = errors.New("booking duration must be between 15 minutes and 4 hours")
 	ErrBookingForbidden = errors.New("booking belongs to another user")
 )

@@ -11,6 +11,7 @@ import (
 )
 
 var ErrRoomInactive = errors.New("room is inactive")
+var ErrBookingStartPassed = errors.New("booking start time must be in the future")
 
 type BookingRepository struct{ db *sql.DB }
 
@@ -56,6 +57,9 @@ func (r *BookingRepository) Create(ctx context.Context, booking models.Booking) 
 	}
 	if !active {
 		return models.Booking{}, ErrRoomInactive
+	}
+	if !booking.StartTime.After(time.Now().UTC()) {
+		return models.Booking{}, ErrBookingStartPassed
 	}
 	if booking.AttendeeCount > capacity {
 		return models.Booking{}, ErrBookingCapacity

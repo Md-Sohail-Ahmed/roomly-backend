@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,9 +11,15 @@ import (
 	"roomly-api/internal/services"
 )
 
-type staticUserStatus bool
+type staticUserStatus struct {
+	active bool
+	role   string
+	err    error
+}
 
-func (s staticUserStatus) IsActive(context.Context, int64) (bool, error) { return bool(s), nil }
+func (s staticUserStatus) AuthorizationState(context.Context, int64) (bool, string, error) {
+	return s.active, s.role, s.err
+}
 
 func TestAuthAcceptsVerifiedBearerToken(t *testing.T) {
 	secret := "0123456789abcdef0123456789abcdef"
@@ -20,7 +27,7 @@ func TestAuthAcceptsVerifiedBearerToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := Auth(secret, staticUserStatus(true), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Auth(secret, staticUserStatus{active: true, role: "admin"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		identity, ok := AuthenticatedUser(r.Context())
 		if !ok || identity.UserID != 9 || identity.Role != "admin" {
 			t.Errorf("unexpected authenticated identity: %#v, %v", identity, ok)
@@ -38,7 +45,7 @@ func TestAuthAcceptsVerifiedBearerToken(t *testing.T) {
 
 func TestAuthRejectsMissingMalformedAndForgedTokens(t *testing.T) {
 	secret := "0123456789abcdef0123456789abcdef"
-	handler := Auth(secret, staticUserStatus(true), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Auth(secret, staticUserStatus{active: true, role: "employee"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("next handler must not be called")
 	}))
 	for _, authorization := range []string{"", "Basic abc", "Bearer broken", "Bearer a.b.c"} {
@@ -63,13 +70,14 @@ func TestAuthRejectsDeactivatedUserAndRoleMiddlewareForbidsEmployee(t *testing.T
 	for _, tc := range []struct {
 		name   string
 		active bool
+		role   string
 		want   int
 	}{
-		{name: "inactive user", active: false, want: http.StatusUnauthorized},
-		{name: "employee lacks admin role", active: true, want: http.StatusForbidden},
+		{name: "inactive user", active: false, role: "employee", want: http.StatusUnauthorized},
+		{name: "employee lacks admin role", active: true, role: "employee", want: http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := Auth(secret, staticUserStatus(tc.active), adminOnly)
+			handler := Auth(secret, staticUserStatus{active: tc.active, role: tc.role}, adminOnly)
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.Header.Set("Authorization", "Bearer "+employeeToken)
 			res := httptest.NewRecorder()
@@ -78,5 +86,41 @@ func TestAuthRejectsDeactivatedUserAndRoleMiddlewareForbidsEmployee(t *testing.T
 				t.Fatalf("status = %d, want %d", res.Code, tc.want)
 			}
 		})
+	}
+}
+
+func TestAuthRejectsStaleRoleClaim(t *testing.T) {
+	secret := "0123456789abcdef0123456789abcdef"
+	token, err := services.GenerateToken(models.User{ID: 12, Role: "employee"}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := Auth(secret, staticUserStatus{active: true, role: "admin"}, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("stale role token must not reach protected handler")
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuthReturnsServerErrorWhenUserLookupFails(t *testing.T) {
+	secret := "0123456789abcdef0123456789abcdef"
+	token, err := services.GenerateToken(models.User{ID: 12, Role: "employee"}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := Auth(secret, staticUserStatus{err: errors.New("database unavailable")}, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("handler must not run when user status cannot be checked")
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusInternalServerError)
 	}
 }

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"unicode"
 
 	"roomly-api/internal/models"
-	"roomly-api/internal/repository"
 )
 
 var (
@@ -20,17 +20,22 @@ var (
 )
 
 type AuthService struct {
-	users *repository.UserRepository
+	users authUserStore
 }
 
-func NewAuthService(users *repository.UserRepository) *AuthService {
+type authUserStore interface {
+	Create(context.Context, string, string, string) (models.User, error)
+	FindByEmail(context.Context, string) (models.User, error)
+}
+
+func NewAuthService(users authUserStore) *AuthService {
 	return &AuthService{users: users}
 }
 
 func (s *AuthService) Register(ctx context.Context, name, email, password string) (models.User, error) {
 	name = strings.TrimSpace(name)
 	email = strings.ToLower(strings.TrimSpace(email))
-	if len([]rune(name)) < 2 || len([]rune(name)) > 100 {
+	if len([]rune(name)) < 2 || len([]rune(name)) > 100 || strings.IndexFunc(name, unicode.IsControl) >= 0 {
 		return models.User{}, ErrInvalidName
 	}
 	if err := validateEmail(email); err != nil {
