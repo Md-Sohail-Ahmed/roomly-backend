@@ -44,6 +44,8 @@ func run() error {
 	authHandler := handlers.NewAuthHandler(authService, cfg.JWTSecret)
 	roomRepo := repository.NewRoomRepository(db)
 	roomHandler := handlers.NewRoomHandler(services.NewRoomService(roomRepo))
+	amenityRepo := repository.NewAmenityRepository(db)
+	amenityHandler := handlers.NewAmenityHandler(services.NewAmenityService(amenityRepo))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
@@ -56,6 +58,14 @@ func run() error {
 	mux.Handle("POST /api/v1/rooms", adminOnly(http.HandlerFunc(roomHandler.Create)))
 	mux.Handle("PUT /api/v1/rooms/{id}", adminOnly(http.HandlerFunc(roomHandler.Update)))
 	mux.Handle("PATCH /api/v1/rooms/{id}/status", adminOnly(http.HandlerFunc(roomHandler.SetActive)))
+	mux.Handle("GET /api/v1/amenities", withAuth(http.HandlerFunc(amenityHandler.List)))
+	mux.Handle("GET /api/v1/amenities/{id}", withAuth(http.HandlerFunc(amenityHandler.Get)))
+	mux.Handle("POST /api/v1/amenities", adminOnly(http.HandlerFunc(amenityHandler.Create)))
+	mux.Handle("PUT /api/v1/amenities/{id}", adminOnly(http.HandlerFunc(amenityHandler.Update)))
+	mux.Handle("DELETE /api/v1/amenities/{id}", adminOnly(http.HandlerFunc(amenityHandler.Delete)))
+	mux.Handle("GET /api/v1/rooms/{id}/amenities", withAuth(http.HandlerFunc(amenityHandler.ListForRoom)))
+	mux.Handle("POST /api/v1/rooms/{id}/amenities/{amenityID}", adminOnly(http.HandlerFunc(amenityHandler.AddToRoom)))
+	mux.Handle("DELETE /api/v1/rooms/{id}/amenities/{amenityID}", adminOnly(http.HandlerFunc(amenityHandler.RemoveFromRoom)))
 
 	server := &http.Server{
 		Addr:              ":" + strconv.Itoa(cfg.AppPort),
