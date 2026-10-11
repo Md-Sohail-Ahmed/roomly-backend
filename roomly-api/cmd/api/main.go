@@ -48,6 +48,7 @@ func run() error {
 	amenityHandler := handlers.NewAmenityHandler(services.NewAmenityService(amenityRepo))
 	bookingRepo := repository.NewBookingRepository(db)
 	bookingHandler := handlers.NewBookingHandler(services.NewBookingService(bookingRepo))
+	adminUserHandler := handlers.NewAdminUserHandler(services.NewAdminUserService(userRepo))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
@@ -74,6 +75,10 @@ func run() error {
 	mux.Handle("GET /api/v1/bookings/mine", withAuth(middleware.RequireRole("employee", http.HandlerFunc(bookingHandler.ListMine))))
 	mux.Handle("GET /api/v1/bookings/{id}", withAuth(http.HandlerFunc(bookingHandler.Get)))
 	mux.Handle("POST /api/v1/bookings/{id}/cancel", withAuth(http.HandlerFunc(bookingHandler.Cancel)))
+	mux.Handle("GET /api/v1/users", adminOnly(http.HandlerFunc(adminUserHandler.List)))
+	mux.Handle("GET /api/v1/users/{id}", adminOnly(http.HandlerFunc(adminUserHandler.Get)))
+	mux.Handle("PATCH /api/v1/users/{id}/status", adminOnly(http.HandlerFunc(adminUserHandler.SetActive)))
+	mux.Handle("PATCH /api/v1/users/{id}/role", adminOnly(http.HandlerFunc(adminUserHandler.SetRole)))
 
 	server := &http.Server{
 		Addr:              ":" + strconv.Itoa(cfg.AppPort),

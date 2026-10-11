@@ -26,3 +26,11 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	}
 	return nil
 }
+
+func writeRequestDecodeError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errJSONContentType) {
+		writeError(w, http.StatusUnsupportedMediaType, err.Error())
+		return
+	}
+	writeError(w, http.StatusBadRequest, "invalid request body")
+}

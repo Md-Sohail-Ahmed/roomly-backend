@@ -53,7 +53,7 @@ type amenityRequest struct {
 func (h *AmenityHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req amenityRequest
 	if err := decodeJSON(w, r, &req); err != nil {
-		h.writeDecodeError(w, err)
+		writeRequestDecodeError(w, err)
 		return
 	}
 	item, err := h.amenities.Create(r.Context(), models.Amenity{Name: req.Name, Description: req.Description})
@@ -71,7 +71,7 @@ func (h *AmenityHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	var req amenityRequest
 	if err := decodeJSON(w, r, &req); err != nil {
-		h.writeDecodeError(w, err)
+		writeRequestDecodeError(w, err)
 		return
 	}
 	item, err := h.amenities.Update(r.Context(), id, models.Amenity{Name: req.Name, Description: req.Description})
@@ -150,14 +150,6 @@ func amenityID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 		return 0, false
 	}
 	return id, true
-}
-
-func (h *AmenityHandler) writeDecodeError(w http.ResponseWriter, err error) {
-	if errors.Is(err, errJSONContentType) {
-		writeError(w, http.StatusUnsupportedMediaType, err.Error())
-		return
-	}
-	writeError(w, http.StatusBadRequest, "invalid request body")
 }
 
 func (h *AmenityHandler) writeAmenityError(w http.ResponseWriter, err error, message string) {

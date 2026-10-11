@@ -60,7 +60,7 @@ type roomRequest struct {
 func (h *RoomHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req roomRequest
 	if err := decodeJSON(w, r, &req); err != nil {
-		h.writeDecodeError(w, err)
+		writeRequestDecodeError(w, err)
 		return
 	}
 	room, err := h.rooms.Create(r.Context(), models.Room{Name: req.Name, Capacity: req.Capacity, Location: req.Location})
@@ -78,7 +78,7 @@ func (h *RoomHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	var req roomRequest
 	if err := decodeJSON(w, r, &req); err != nil {
-		h.writeDecodeError(w, err)
+		writeRequestDecodeError(w, err)
 		return
 	}
 	room, err := h.rooms.Update(r.Context(), id, models.Room{Name: req.Name, Capacity: req.Capacity, Location: req.Location})
@@ -98,7 +98,7 @@ func (h *RoomHandler) SetActive(w http.ResponseWriter, r *http.Request) {
 		IsActive *bool `json:"is_active"`
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
-		h.writeDecodeError(w, err)
+		writeRequestDecodeError(w, err)
 		return
 	}
 	if req.IsActive == nil {
@@ -141,14 +141,6 @@ func parsePagination(r *http.Request) (int, int, error) {
 		return 0, 0, errors.New("pagination overflow")
 	}
 	return page, limit, nil
-}
-
-func (h *RoomHandler) writeDecodeError(w http.ResponseWriter, err error) {
-	if errors.Is(err, errJSONContentType) {
-		writeError(w, http.StatusUnsupportedMediaType, err.Error())
-		return
-	}
-	writeError(w, http.StatusBadRequest, "invalid request body")
 }
 
 func (h *RoomHandler) writeRoomError(w http.ResponseWriter, err error, message string) {

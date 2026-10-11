@@ -52,7 +52,7 @@ type bookingRequest struct {
 func (h *BookingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req bookingRequest
 	if err := decodeJSON(w, r, &req); err != nil {
-		writeBookingDecodeError(w, err)
+		writeRequestDecodeError(w, err)
 		return
 	}
 	identity, ok := middleware.AuthenticatedUser(r.Context())
@@ -149,14 +149,6 @@ func bookingID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 		return 0, false
 	}
 	return id, true
-}
-
-func writeBookingDecodeError(w http.ResponseWriter, err error) {
-	if errors.Is(err, errJSONContentType) {
-		writeError(w, http.StatusUnsupportedMediaType, err.Error())
-		return
-	}
-	writeError(w, http.StatusBadRequest, "invalid request body")
 }
 
 func (h *BookingHandler) writeBookingError(w http.ResponseWriter, err error, message string) {
