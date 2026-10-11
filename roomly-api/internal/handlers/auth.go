@@ -12,11 +12,12 @@ import (
 )
 
 type AuthHandler struct {
-	auth *services.AuthService
+	auth      *services.AuthService
+	jwtSecret string
 }
 
-func NewAuthHandler(auth *services.AuthService) *AuthHandler {
-	return &AuthHandler{auth: auth}
+func NewAuthHandler(auth *services.AuthService, jwtSecret string) *AuthHandler {
+	return &AuthHandler{auth: auth, jwtSecret: jwtSecret}
 }
 
 type registerRequest struct {
@@ -106,9 +107,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// JWT generation will be connected in the next step.
+	token, err := services.GenerateToken(user, h.jwtSecret)
+	if err != nil {
+		log.Printf("generate login token: %v", err)
+		writeError(w, http.StatusInternalServerError, "could not log in")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"user": user,
+		"token": token,
+		"user":  user,
 	})
 }
 

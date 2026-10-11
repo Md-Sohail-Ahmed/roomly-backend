@@ -33,7 +33,6 @@ func Load() (*Config, error) {
 		DBPassword: "",
 		DBName:     "roomly_db",
 		DBTimezone: "UTC",
-		JWTSecret:  os.Getenv("JWT_SECRET"),
 	}
 
 	if err := loadDotEnv(".env"); err != nil && !os.IsNotExist(err) {
@@ -48,6 +47,10 @@ func Load() (*Config, error) {
 	cfg.DBPassword = getStringEnv("DB_PASSWORD", cfg.DBPassword)
 	cfg.DBName = getStringEnv("DB_NAME", cfg.DBName)
 	cfg.DBTimezone = getStringEnv("DB_TIMEZONE", cfg.DBTimezone)
+	cfg.JWTSecret = getStringEnv("JWT_SECRET", "")
+	if len(cfg.JWTSecret) < 32 {
+		return nil, fmt.Errorf("JWT_SECRET must be set to at least 32 characters")
+	}
 
 	return cfg, nil
 }

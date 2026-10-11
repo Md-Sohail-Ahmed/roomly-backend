@@ -40,7 +40,7 @@ func run() error {
 
 	userRepo := repository.NewUserRepository(db)
 	authService := services.NewAuthService(userRepo)
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authService, cfg.JWTSecret)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
