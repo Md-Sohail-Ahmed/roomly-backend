@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log"
 	"net/http"
 
@@ -36,19 +35,13 @@ type errorResponse struct {
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-
 	var req registerRequest
-	if err := decoder.Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		writeError(w, http.StatusBadRequest, "request must contain one JSON object")
+	if err := decodeJSON(w, r, &req); err != nil {
+		if errors.Is(err, errJSONContentType) {
+			writeError(w, http.StatusUnsupportedMediaType, err.Error())
+		} else {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+		}
 		return
 	}
 
@@ -79,19 +72,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-
 	var req loginRequest
-	if err := decoder.Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		writeError(w, http.StatusBadRequest, "request must contain one JSON object")
+	if err := decodeJSON(w, r, &req); err != nil {
+		if errors.Is(err, errJSONContentType) {
+			writeError(w, http.StatusUnsupportedMediaType, err.Error())
+		} else {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+		}
 		return
 	}
 

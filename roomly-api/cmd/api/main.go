@@ -15,6 +15,7 @@ import (
 	"roomly-api/internal/config"
 	"roomly-api/internal/database"
 	"roomly-api/internal/handlers"
+	"roomly-api/internal/middleware"
 	"roomly-api/internal/repository"
 	"roomly-api/internal/services"
 )
@@ -41,11 +42,20 @@ func run() error {
 	userRepo := repository.NewUserRepository(db)
 	authService := services.NewAuthService(userRepo)
 	authHandler := handlers.NewAuthHandler(authService, cfg.JWTSecret)
+	roomRepo := repository.NewRoomRepository(db)
+	roomHandler := handlers.NewRoomHandler(services.NewRoomService(roomRepo))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+	withAuth := func(next http.Handler) http.Handler { return middleware.Auth(cfg.JWTSecret, userRepo, next) }
+	adminOnly := func(next http.Handler) http.Handler { return withAuth(middleware.RequireRole("admin", next)) }
+	mux.Handle("GET /api/v1/rooms", withAuth(http.HandlerFunc(roomHandler.List)))
+	mux.Handle("GET /api/v1/rooms/{id}", withAuth(http.HandlerFunc(roomHandler.Get)))
+	mux.Handle("POST /api/v1/rooms", adminOnly(http.HandlerFunc(roomHandler.Create)))
+	mux.Handle("PUT /api/v1/rooms/{id}", adminOnly(http.HandlerFunc(roomHandler.Update)))
+	mux.Handle("PATCH /api/v1/rooms/{id}/status", adminOnly(http.HandlerFunc(roomHandler.SetActive)))
 
 	server := &http.Server{
 		Addr:              ":" + strconv.Itoa(cfg.AppPort),
