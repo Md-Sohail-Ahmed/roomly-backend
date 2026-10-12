@@ -11,7 +11,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Open creates a MySQL connection pool and verifies it can ping the database.
+// Open creates a MySQL connection pool 
 func Open(cfg *config.Config) (*sql.DB, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")

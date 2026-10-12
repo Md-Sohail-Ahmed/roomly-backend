@@ -53,10 +53,13 @@ func run() error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
+
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+
 	withAuth := func(next http.Handler) http.Handler { return middleware.Auth(cfg.JWTSecret, userRepo, next) }
 	adminOnly := func(next http.Handler) http.Handler { return withAuth(middleware.RequireRole("admin", next)) }
+	
 	mux.Handle("GET /api/v1/rooms", withAuth(http.HandlerFunc(roomHandler.List)))
 
 	mux.Handle("GET /api/v1/rooms/{id}", withAuth(http.HandlerFunc(roomHandler.Get)))
@@ -84,6 +87,7 @@ func run() error {
 	mux.Handle("DELETE /api/v1/rooms/{id}/amenities/{amenityID}", adminOnly(http.HandlerFunc(amenityHandler.RemoveFromRoom)))
 
 	mux.Handle("GET /api/v1/rooms/{id}/availability", withAuth(http.HandlerFunc(bookingHandler.Availability)))
+	
 	mux.Handle("GET /api/v1/rooms/{id}/schedule", withAuth(http.HandlerFunc(bookingHandler.RoomSchedule)))
 
 	mux.Handle("POST /api/v1/bookings", withAuth(middleware.RequireRole("employee", http.HandlerFunc(bookingHandler.Create))))
@@ -150,6 +154,7 @@ func run() error {
 		return nil
 	}
 }
+
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]string{
